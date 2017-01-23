@@ -1,9 +1,9 @@
 # adv-func-prog
 
-För att updatera
-git pull
+För att updatera\n
+git pull\n\n
 
-För att ladda upp
-git add .
-git commit -m "msg"
-git push 
+För att ladda upp\n
+git add . \n
+git commit -m "msg" \n
+git push \n
