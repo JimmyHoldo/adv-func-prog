@@ -4,12 +4,13 @@ module Turtle (
   -- Non-exhaustive list of possible types: Turtle, Program, Action, Operation ...
   Program
   , Turtle (..)
-  --  Action, Operation
+  -- , Action
+  -- , Operation
 
   -- * Primitive operations
   , forward
   , right
-  , (>*>)
+  -- , (>*>)
   -- , ...
   , penup
   , pendown
@@ -42,6 +43,10 @@ type Color = (Double, Double, Double)
 -- | Degree of angle
 type Angle = Double
 
+--data Action = (Operation, Turtle, Turtle) 
+
+--data Operation = Operation{}
+
 data Turtle = Turtle { 
       position  :: Position
     , direction :: Angle
@@ -53,7 +58,7 @@ data Turtle = Turtle {
 
 --  You can use newtype instead of data if you wish.
 -- Should be more than a turtle, perhaps action and operation
-type Program = Turtle
+type Program = Turtle --[(Operation, Action)]
 
 -- | Turtle take a step forward.
 forward  :: Program -> Double -> Program
@@ -70,8 +75,8 @@ right turtle angle = Turtle (position turtle) (newDir) (pen turtle) (col turtle)
             newDir = direction turtle + angle
             
 -- | Perform commands one after another.
-(>*>) :: Program -> Program -> Program
-(>*>) = undefined
+-- (>*>) :: Program -> (Program -> a -> Program) -> a -> Program
+-- (turtle1 >*> turtle2) x = turtle1 x >>= turtle2 
 
 -- | Penup: stop drawing turtle
 penup :: Program -> Program

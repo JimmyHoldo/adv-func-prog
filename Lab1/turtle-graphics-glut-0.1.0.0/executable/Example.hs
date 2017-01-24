@@ -6,9 +6,20 @@ import Turtle
 
 main = runGraphical coolExample
 
-coolExample = undefined
+coolExample = spiral (Turtle (0.0,0.0) 0 True (0.0, 0.0, 0.0)) 0 0
 
 spiral :: Program -> Double -> Double -> Program
 spiral turtle size angle | size > 100 = idle turtle
                          | otherwise  = 
-            spiral (forward turtle size >*> right angle) (size + 2) angle
+            spiral (forward turtle size) (size + 2) angle
+            where t = forward turtle size
+            
+            
+-- spiralForever :: Program -> Double -> Double -> Program
+-- spiralForever turtle size angle = 
+         -- spiralForever (forward turtle size >*> right turtle angle) (size + 2) angle
+         
+-- spiralFiniteToForever :: Program -> Double -> Double -> Program
+-- spiralFiniteToForever turtle size angle | size > 100 = spiralForever turtle size angle
+                         -- | otherwise  = 
+            -- spiralFiniteToForever (forward turtle size >*> right turtle angle) (size + 2) angle
