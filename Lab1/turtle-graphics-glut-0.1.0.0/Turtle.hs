@@ -5,12 +5,12 @@ module Turtle (
   Program
   , Turtle (..)
   -- , Action
-  -- , Operation
+  , Operation(..)
 
   -- * Primitive operations
   , forward
   , right
-  -- , (>*>)
+  , (>*>)
   -- , ...
   , penup
   , pendown
@@ -21,8 +21,9 @@ module Turtle (
   , lifespan
   , backward
   , left
-  , times
+  --, times
   , forever
+  , startTurtle
   -- * Derived operations
   -- ...
 
@@ -43,9 +44,10 @@ type Color = (Double, Double, Double)
 -- | Degree of angle
 type Angle = Double
 
---data Action = (Operation, Turtle, Turtle) 
+--data Action = A(Operation, Turtle, Turtle) 
 
---data Operation = Operation{}
+data Operation = Start | Move | Turn | Idle | Col | Penup | Pendown | Die
+            deriving Show
 
 data Turtle = Turtle { 
       position  :: Position
@@ -55,70 +57,92 @@ data Turtle = Turtle {
     }     
   deriving Show
 
+startTurtle = (Start, (t, t)):[]
+        where t = Turtle (300,300) 0 True (0,255,255)
 
 --  You can use newtype instead of data if you wish.
 -- Should be more than a turtle, perhaps action and operation
-type Program = Turtle --[(Operation, Action)]
+type Program = [(Operation, (Turtle, Turtle)) ] -> [(Operation, (Turtle, Turtle)) ]
 
 -- | Turtle take a step forward.
-forward  :: Program -> Double -> Program
-forward turtle length = Turtle (newPos) (direction turtle) (pen turtle) (col turtle)
+forward  :: Double -> Program
+forward length turtle = turtle ++ [(Move, (newTurtle, t))]
         where 
-            (x,y) = position turtle
-            angle = direction turtle
-            newPos = (x + length * cos(angle), y + length * sin(angle))
-
+            t = fst . snd $ last turtle
+            (x,y) = position t
+            angle = direction t
+            newPos = (x + length * cos (angle * pi / 180), 
+                               y + length * sin (angle * pi / 180))
+            newTurtle = Turtle (newPos) (direction t) (pen t) (col t)
+            
 -- | Turn the turtle right with given angle.
-right :: Program -> Double -> Program 
-right turtle angle = Turtle (position turtle) (newDir) (pen turtle) (col turtle)
+right :: Double -> Program 
+right angle turtle = turtle ++ [(Turn, (newTurtle, t))]
         where 
-            newDir = direction turtle + angle
+            t = fst . snd $ last turtle
+            newDir = direction t + angle
+            newTurtle = Turtle (position t) (newDir) (pen t) (col t)
             
 -- | Perform commands one after another.
--- (>*>) :: Program -> (Program -> a -> Program) -> a -> Program
--- (turtle1 >*> turtle2) x = turtle1 x >>= turtle2 
+(>*>):: t1 -> (t -> t1 -> t2) -> t -> t2
+(>*>) turtle1 f n = f n turtle1
 
 -- | Penup: stop drawing turtle
-penup :: Program -> Program
-penup turtle = Turtle (position turtle) (direction turtle) (False) (col turtle)
+penup :: Program
+penup turtle = turtle ++ [(Penup, (newTurtle, t))]
+        where
+           t = fst . snd $ last turtle
+           newTurtle = Turtle (position t) (direction t) (False) (col t)
 -- | Pendown: start drawing turtle
-pendown :: Program -> Program
-pendown turtle = Turtle (position turtle) (direction turtle) (True) (col turtle)
+pendown :: Program
+pendown turtle = turtle ++ [(Pendown, (newTurtle, t))]
+        where
+           t = fst . snd $ last turtle
+           newTurtle = Turtle (position t) (direction t) (True) (col t)
 
 -- | Changes the color of the turtle's pen.
-color :: Program -> Color -> Program
-color turtle color = Turtle (position turtle) (direction turtle) (pen turtle) (color)
+color :: Color -> Program
+color c turtle = turtle ++ [(Col, (newTurtle, t))]
+        where
+           t = fst . snd $ last turtle
+           newTurtle = Turtle (position t) (direction t) (pen t) (c)
 
 -- | "Kills" the turtle.
-die :: Program -> Program
-die = undefined
+die :: Program
+die turtle = turtle ++ [(Die, (newTurtle, t))]
+        where
+           t = fst . snd $ last turtle
+           newTurtle = Turtle (position t) (direction t) (pen t) (col t)
 
 -- | A program that does nothing.
-idle :: Program -> Program
-idle turtle = Turtle (position turtle) (direction turtle) (pen turtle) (col turtle)
+idle :: Program
+idle turtle = turtle ++ [(Idle, (t, t))]
+           where 
+              t = fst . snd $ last turtle
 
 -- | Makes the turtle stop what it is doing after a specified period of time.
-limited :: Program -> Int -> Program
+limited :: Int -> Program
 limited = undefined
 
 -- | Kills the turtle after a specified period of time.
-lifespan :: Program -> Int -> Program
+lifespan :: Int -> Program
 lifespan = undefined
 
 -- | Turtle take a step back.
-backward  :: Program -> Double -> Program
-backward turtle length = forward turtle (-length)
+backward  :: Double -> Program
+backward length turtle = forward (-length) turtle
 
 -- | Turn the turtle left with given angle.
-left :: Program -> Double -> Program 
-left = undefined
+left :: Double -> Program 
+left angle turtle = right (-angle) turtle
 
 -- | Repeats a turtle program a certain number of times.
-times :: Program -> Int -> Program
-times = undefined
+-- times :: Int -> Program
+-- times n turtle = case last turtle of
+                 -- (Move, (t1,t2)) -> [nextTurtle ]
 
 -- | Repeats a program forever.
-forever :: Program -> Program
+forever :: Program
 forever = undefined
 
 

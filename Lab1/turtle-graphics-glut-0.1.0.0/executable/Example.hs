@@ -1,18 +1,17 @@
-module Main where
+module Example where
 
-import TurtleGraphics
+--import TurtleGraphics
 import Turtle
 -- import TurtleExtras
 
-main = runGraphical coolExample
+--main = runGraphical coolExample
 
-coolExample = spiral (Turtle (0.0,0.0) 0 True (0.0, 0.0, 0.0)) 0 0
+coolExample = spiral 0 10 startTurtle
 
-spiral :: Program -> Double -> Double -> Program
-spiral turtle size angle | size > 100 = idle turtle
+spiral :: Double -> Double -> Program
+spiral size angle turtle | size > 100 = idle turtle
                          | otherwise  = 
-            spiral (forward turtle size) (size + 2) angle
-            where t = forward turtle size
+            spiral (size + 2) angle (( >*>)(forward size turtle) right angle)
             
             
 -- spiralForever :: Program -> Double -> Double -> Program
