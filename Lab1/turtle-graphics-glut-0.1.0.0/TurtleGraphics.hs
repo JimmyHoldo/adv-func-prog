@@ -10,10 +10,12 @@ import qualified Graphics.Rendering.OpenGL.GL as GL
 import qualified Graphics.Rendering.OpenGL.GLU as GLU
 import Graphics.UI.GLUT hiding (Program)
 
-tt = [(Move,(Turtle {Turtle.position = (100.0,20.0), direction = 0.0, pen = True, col = (0.0,255.0,255.0)},Turtle {Turtle.position = (20.0,100.0), direction = 0.0, pen = True, col = (0.0,255.0,255.0)}))] ++ startTurtle
-
-runGraphical :: [(Operation, (Turtle, Turtle))] -> IO ()
-runGraphical p = do
+t = (Turtle (300,300) 0 True (0,255,255))
+c = [(Op (Move 45.0)), (Op (Turn 45.0)), (Op (Move 100.0)), (Op (Turn 20.0)), (Op (Move 45.0))]
+b = [Seq (Seq (Op (Move 45.0)) (Op (Turn 90.0))) (Op (Move 15.0)), Seq (Seq (Op (Move 30.0)) (Op (Turn 90.0))) (Op (Move 45.0))]
+a = [Seq (Seq (Seq (Seq (Op (Move 4.0)) (Op (Move 4.0))) (Op (Move 5.0))) (Op (Move 5.0))) (Op (Move 7.0))]
+runGraphical :: [Action] -> Turtle -> IO ()
+runGraphical p turtle = do
     initialWindowSize $= Size 600 600
     (_progName, _args) <- getArgsAndInitialize
     window <- createWindow "Turtle!"
@@ -25,23 +27,81 @@ runGraphical p = do
     display :: DisplayCallback
     display = do
              clear [ColorBuffer]
-             draw p 
+             putStrLn (show p)
+             draw p turtle
              flush
 
-draw :: [(Operation, (Turtle, Turtle)) ] -> IO()
-draw [] = return ()    
-draw ((Idle, (t1, t2)):xs) = draw xs
-draw ((Start, (t1, t2)):xs) = draw xs
-draw ((Move, (t1, t2)):xs) = do 
-                setColor (col t1)
-                let (x,y) = Turtle.position t1
-                    (x1,y1) = Turtle.position t2
-                if pen t2 == True
+
+draw :: [Action] -> Turtle -> IO()
+draw [] _ = return ()    
+draw (a@(Op (Idle)):xs) t = do 
+                draw xs t
+                return ()
+draw (a@(Op (Turn n)):xs) t = do 
+                draw' a t
+                let newT = getTurtle a t
+                draw xs newT
+                return ()
+draw (a@(Op (Move n)):xs) t = do 
+                draw' a t
+                let newT = getTurtle a t
+                draw xs newT
+                return ()
+draw (s@(Seq (a) (b)):xs) t = do 
+                draw' s t
+                let newT = getTurtle s t
+                draw xs newT
+                return ()
+draw (f@(F (a)):xs) t = do 
+                draw' f t
+                let newT = getTurtle f t
+                draw xs newT
+                return ()
+draw (times@(TM (a) n):xs) t = do 
+                draw' times t
+                let newT = getTurtle times t
+                if n > 0 
+                then do draw ((TM (a) (n-1)):xs) newT
+                        return ()
+                else do draw xs newT
+                        return ()
+                
+-- | Helper function for drawing   
+draw' :: Action -> Turtle -> IO()
+draw' (Op (Move n)) t      = do
+                setColor (col t)
+                let newT = updatePosTurtle t n
+                    (x,y) = Turtle.position t
+                    (x1,y1) = Turtle.position newT
+                if pen t == True
                 then line (floor x,floor y) (floor x1,floor y1)
                 else return ()
-                draw xs
-draw ((Turn, (_,_)):xs) = draw xs
-draw ((Die, (_,_)):xs) = return ()
+                    
+draw' (Op (Turn n)) t = return ()
+draw' (Seq (a) (b)) t = do 
+                draw' a t
+                let newT = getTurtle a t
+                draw' b newT
+draw' (F (a)) t = do 
+                draw' a t
+                return ()
+draw' (TM (a) n) t = do 
+                draw' a t
+                return ()
+
+
+getTurtle :: Action -> Turtle -> Turtle
+getTurtle (Op (Move n)) t = updatePosTurtle t n
+getTurtle (Op (Turn n)) t = updateDegTurtle t n
+getTurtle (Seq (a) (b)) t   = newT2
+            where
+                newT  = getTurtle a t
+                newT2 = getTurtle b newT
+getTurtle (F (a)) t = getTurtle a t
+getTurtle (TM (a) n) t = getTurtle a t
+
+
+
 
 
 setColor :: (Double, Double, Double) -> IO ()
