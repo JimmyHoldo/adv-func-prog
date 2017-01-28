@@ -14,6 +14,8 @@ t = (Turtle (300,300) 0 True (0,255,255))
 c = [(Op (Move 45.0)), (Op (Turn 45.0)), (Op (Move 100.0)), (Op (Turn 20.0)), (Op (Move 45.0))]
 b = [Seq (Seq (Op (Move 45.0)) (Op (Turn 90.0))) (Op (Move 15.0)), Seq (Seq (Op (Move 30.0)) (Op (Turn 90.0))) (Op (Move 45.0))]
 a = [Seq (Seq (Seq (Seq (Op (Move 4.0)) (Op (Move 4.0))) (Op (Move 5.0))) (Op (Move 5.0))) (Op (Move 7.0))]
+
+-- | Run graphics
 runGraphical :: [Action] -> Turtle -> IO ()
 runGraphical p turtle = do
     initialWindowSize $= Size 600 600
@@ -31,74 +33,131 @@ runGraphical p turtle = do
              draw p turtle
              flush
 
-
+-- | Draw the program on the screen.
 draw :: [Action] -> Turtle -> IO()
-draw [] _ = return ()    
-draw (a@(Op (Idle)):xs) t = do 
-                draw xs t
-                return ()
-draw (a@(Op (Turn n)):xs) t = do 
-                draw' a t
-                let newT = getTurtle a t
+draw [] _ = return () 
+draw ((Op (Die)):xs) t =do 
+        let newT = updateTurtleLife 0 t
+        draw xs newT
+        return ()
+draw ((Op (Idle)):xs) t = do 
+        if life t == 0
+        then return ()
+        else do
+            let newT = decreaseTurtleLife 1 t
+            draw xs newT
+draw ((Op (Life n)):xs) t = do 
+        let newT = updateTurtleLife n t
+        draw xs newT
+        return ()
+draw (a@(Op (Pen n)):xs) t = do 
+        if life t == 0
+        then return ()
+        else do let newT = getTurtle a t
                 draw xs newT
                 return ()
+draw (a@(Op (Col c)):xs) t = do 
+        if life t == 0
+        then return ()
+        else do let newT = getTurtle a t
+                draw xs newT
+                return ()
+draw (a@(Op (Turn n)):xs) t = do
+        if life t == 0
+        then return ()
+        else do 
+            let newT = getTurtle a t
+            draw xs newT
+            return ()
 draw (a@(Op (Move n)):xs) t = do 
-                draw' a t
-                let newT = getTurtle a t
+        if life t == 0
+        then return ()
+        else do
+            draw' a t
+            let newT = getTurtle a t
+            if life t == 0
+            then return ()
+            else do
                 draw xs newT
                 return ()
 draw (s@(Seq (a) (b)):xs) t = do 
-                draw' s t
-                let newT = getTurtle s t
-                draw xs newT
-                return ()
+        if life t == 0
+        then return ()
+        else do
+            draw ([a]) t
+            let newT = getTurtle a t
+            if life newT == 0
+            then return ()
+            else do draw ([b]) newT
+                    let newT2 = getTurtle b newT
+                    if life newT2 == 0
+                    then return ()
+                    else do draw xs newT2
+                            return ()
 draw (f@(F (a)):xs) t = do 
-                draw' f t
-                let newT = getTurtle f t
-                draw xs newT
-                return ()
-draw (times@(TM (a) n):xs) t = do 
-                draw' times t
-                let newT = getTurtle times t
-                if n > 0 
+        draw ([f]) t
+        let newT = getTurtle a t
+        draw xs newT
+        return ()
+draw ((TM (a) n):xs) t = do 
+        if life t == 0
+        then return ()
+        else do draw (a) t
+                let newT = getTurtle2 a t
+                if n > 1 
                 then do draw ((TM (a) (n-1)):xs) newT
                         return ()
-                else do draw xs newT
-                        return ()
+                else do if life newT == 0
+                        then return ()
+                        else do draw xs newT
+                                return ()
+            where
+                getTurtle2 (x:xs) tur = getTurtle2 (xs) (getTurtle x tur)
+                getTurtle2 [] tur   = tur
                 
 -- | Helper function for drawing   
 draw' :: Action -> Turtle -> IO()
-draw' (Op (Move n)) t      = do
-                setColor (col t)
-                let newT = updatePosTurtle t n
-                    (x,y) = Turtle.position t
-                    (x1,y1) = Turtle.position newT
-                if pen t == True
-                then line (floor x,floor y) (floor x1,floor y1)
-                else return ()
-                    
-draw' (Op (Turn n)) t = return ()
-draw' (Seq (a) (b)) t = do 
-                draw' a t
-                let newT = getTurtle a t
-                draw' b newT
-draw' (F (a)) t = do 
-                draw' a t
-                return ()
-draw' (TM (a) n) t = do 
-                draw' a t
-                return ()
+draw' (Op (Move n)) t = do
+        setColor (col t)
+        let newT = updatePosTurtle n t
+            (x,y) = Turtle.position t
+            (x1,y1) = Turtle.position newT
+        if pen t == True
+        then line (floor x,floor y) (floor x1,floor y1)
+        else return ()
+-- draw' (Op (Turn n)) t = return ()
+-- draw' (Op (Die)) t = return ()
+-- draw' (Seq (a) (b)) t = do 
+        -- if life t == 0
+        -- then return ()
+        -- else do draw' a t
+                -- let newT = getTurtle a t
+                -- if life t == 0
+                -- then return ()
+                -- else do draw' b newT
+-- draw' (F (a)) t = do 
+                -- draw' a t
+                -- return ()
+-- draw' (TM (a) n) t = do 
+                -- draw' a t 
+                -- return ()
 
-
+-- | Get the turtle after a program has run.
 getTurtle :: Action -> Turtle -> Turtle
-getTurtle (Op (Move n)) t = updatePosTurtle t n
-getTurtle (Op (Turn n)) t = updateDegTurtle t n
-getTurtle (Seq (a) (b)) t   = newT2
+getTurtle (Op (Die))    t = updateTurtleLife 0 t
+getTurtle (Op (Move n)) t = decreaseTurtleLife 2 (updatePosTurtle n t)
+getTurtle (Op (Turn n)) t = decreaseTurtleLife 1 (updateDegTurtle n t)
+getTurtle (Op (Col n))  t = decreaseTurtleLife 1 (updateTurtleCol n t)
+getTurtle (Op (Pen n))  t = decreaseTurtleLife 1 (updateTurtlePen n t)
+getTurtle (Seq (a) (b)) t = newT2
             where
                 newT  = getTurtle a t
                 newT2 = getTurtle b newT
 getTurtle (F (a)) t = getTurtle a t
-getTurtle (TM (a) n) t = getTurtle a t
+getTurtle (TM (a) n) t = getTurtle2 (a) t
+            where
+                getTurtle2 (x:xs) tur = getTurtle2 (xs) (getTurtle x tur)
+                getTurtle2 [] tur   = tur
 
 
 
