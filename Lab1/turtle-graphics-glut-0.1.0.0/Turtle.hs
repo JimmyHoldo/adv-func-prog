@@ -11,6 +11,7 @@ module Turtle (
   , forward
   , right
   , (>*>)
+  , (<|>)
   -- , ...
   , penup
   , pendown
@@ -31,6 +32,7 @@ module Turtle (
   , updateTurtlePen
   , updateTurtleCol
   , decreaseTurtleLife
+  , getTurtle
   -- * Run functions
   -- runTextual :: Program -> IO ()
   -- ...
@@ -61,51 +63,58 @@ data Turtle = Turtle {
     , pen       :: Bool
     , col       :: Color
     , life      :: Int
+    , dead      :: Bool
     }     
   deriving Show
 
 
 --  You can use newtype instead of data if you wish.
 -- Should be more than a turtle, perhaps action and operation
-data Action = Op Operation | Seq Action Action | F Action | TM [Action] Int
+data Action = Op Operation | Seq Action Action | Par Action Action |
+              F Action | TM Action Int | Empty
         deriving Show
 
-type Program = [Action] -> [Action]
+type Program = Action 
 
 --type Program = [(Operation, (Turtle, Turtle)) -> [(Operation, (Turtle, Turtle)) ]
 
 -- | Turtle take a step forward.
 forward  :: Double -> Program
-forward length p = p ++ [Op (Move length)]
+forward length = (Op (Move length))
 
             
 -- | Turn the turtle right with given angle.
 right :: Double -> Program 
-right deg p = p ++ [Op (Turn deg)]
+right deg = (Op (Turn deg))
 
             
--- | Perform commands one after another.
-(>*>) t1 t2 p = p ++[Seq ((head t1)) ((head t2))]
+-- | Perform commands one after another
+(>*>) :: Program -> Program -> Program
+t1 >*> t2 = (Seq (t1) (t2))
+
+-- | Perform commands in parallel 
+(<|>) :: Program -> Program -> Program
+(<|>) p1 p2 = (Par p1 p2)
 
 -- | Penup: stop drawing turtle
 penup :: Program
-penup p = p ++ [Op (Pen (False))]
+penup = (Op (Pen (False)))
 
 -- | Pendown: start drawing turtle
 pendown :: Program
-pendown p = p ++ [Op (Pen (True))]
+pendown = (Op (Pen (True)))
 
 -- | Changes the color of the turtle's pen.
 color :: Color -> Program
-color c p = p ++ [Op (Col (c))]
+color c = (Op (Col (c)))
 
 -- | "Kills" the turtle.
 die :: Program
-die p = p ++ [Op (Die)]
+die = (Op (Die))
 
 -- | A program that does nothing.
 idle :: Program
-idle turtle = turtle ++ [Op (Idle)]
+idle = (Op (Idle))
            
 
 -- | Makes the turtle stop what it is doing after a specified period of time.
@@ -114,27 +123,27 @@ limited = undefined
 
 -- | Kills the turtle after a specified period of time.
 lifespan :: Int -> Program
-lifespan n p =[Op (Life n)] ++ p
+lifespan n = (Op (Life n))
 
 -- | Turtle take a step back.
 backward  :: Double -> Program
-backward length turtle = forward (-length) turtle
+backward length = forward (-length)
 
 -- | Turn the turtle left with given angle.
 left :: Double -> Program 
-left angle turtle = right (-angle) turtle
+left angle = right (-angle)
 
 -- | Repeats a turtle program a certain number of times.
-times :: Int -> Program
-times n p = [(TM (p) n)]
+times :: Int -> Program -> Program
+times n p = (TM (p) n)
 
 -- | Repeats a program forever.
-forever :: [Action] -> [Action] -> [Action]
-forever turtle prog = prog ++ [(F (head(turtle)))]
+forever :: Program -> Program
+forever turtle = (F (turtle))
 
 -- | Update a turtles position.
 updatePosTurtle :: Double -> Turtle -> Turtle
-updatePosTurtle length t = Turtle (newPos) (direction t) (pen t) (col t) (life t)
+updatePosTurtle length t = Turtle (newPos) (direction t) (pen t) (col t) (life t) (dead t)
                     where
                        (x,y) = position t
                        angle = direction t
@@ -143,31 +152,44 @@ updatePosTurtle length t = Turtle (newPos) (direction t) (pen t) (col t) (life t
 
 -- | Update the angle of the turtle
 updateDegTurtle :: Double -> Turtle -> Turtle
-updateDegTurtle angle t = Turtle (position t) (newDir) (pen t) (col t) (life t)
+updateDegTurtle angle t = Turtle (position t) (newDir) (pen t) (col t) (life t) (dead t)
                     where
                        newDir = direction t + angle
                        
 -- | Update the life of the turtle.               
 updateTurtleLife :: Int -> Turtle -> Turtle
-updateTurtleLife n t = Turtle (position t) (direction t) (pen t) (col t) (n)
+updateTurtleLife n t = Turtle (position t) (direction t) (pen t) (col t) (n) (dead t)
                     
 
 -- | Decrease the life of a turtle.
 decreaseTurtleLife :: Int -> Turtle -> Turtle
-decreaseTurtleLife n t = Turtle (position t) (direction t) (pen t) (col t) (newLife)
+decreaseTurtleLife n t = Turtle (position t) (direction t) (pen t) (col t) (newLife) (dead t)
                     where newLife | (life t) < 0 = -1
-                                  | (life t) > 0 && ((life t) - n) < 0 = 0
+                                  | (life t) >= 0 && ((life t) - n) < 0 = 0
                                   | otherwise = (life t) - n
 
 -- | Update if the the turtle draw or not.                    
 updateTurtlePen :: Bool -> Turtle -> Turtle
-updateTurtlePen b t = Turtle (position t) (direction t) (b) (col t) (life t)
+updateTurtlePen b t = Turtle (position t) (direction t) (b) (col t) (life t) (dead t)
 
 -- | Update the color of the turtle.
 updateTurtleCol :: Color -> Turtle -> Turtle
-updateTurtleCol c t = Turtle (position t) (direction t) (pen t) (c) (life t)
+updateTurtleCol c t = Turtle (position t) (direction t) (pen t) (c) (life t) (dead t)
 
 
-
+-- | Get the turtle after a program has run.
+getTurtle :: Program -> Turtle -> Turtle
+getTurtle (Empty)       t = t
+getTurtle (Op (Die))    t = Turtle (Turtle.position t) (direction t) (pen t) (col t) (0) (True)
+getTurtle (Op (Idle))   t = decreaseTurtleLife 1 t
+getTurtle (Op (Life n)) t = updateTurtleLife   n t
+getTurtle (Op (Move n)) t = decreaseTurtleLife 2 (updatePosTurtle n t)
+getTurtle (Op (Turn n)) t = decreaseTurtleLife 1 (updateDegTurtle n t)
+getTurtle (Op (Col n))  t = decreaseTurtleLife 1 (updateTurtleCol n t)
+getTurtle (Op (Pen n))  t = decreaseTurtleLife 1 (updateTurtlePen n t)
+getTurtle (Seq (a) (b)) t = newT2
+            where
+                newT  = getTurtle a t
+                newT2 = getTurtle b newT
 
 
