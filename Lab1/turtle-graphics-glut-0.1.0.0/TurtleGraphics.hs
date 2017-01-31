@@ -4,6 +4,7 @@
 module TurtleGraphics (runGraphical) where
 
 import Turtle
+import Control.Concurrent
 
 import qualified Graphics.Rendering.OpenGL.GL as GL
 import qualified Graphics.Rendering.OpenGL.GLU as GLU
@@ -17,14 +18,14 @@ runGraphical p turtle = do
     (_progName, _args) <- getArgsAndInitialize
     window <- createWindow "Turtle!"
     reshapeCallback $= Just setDisplay
-    displayCallback $= display
+    clear [ColorBuffer]
+    displayCallback $= draw p turtle--display
     setDisplay =<< get windowSize
     mainLoop
   where
     display :: DisplayCallback
     display = do
-             clear [ColorBuffer]
-             draw p turtle
+             --draw p turtle
              flush
 
 -- | Draw the program on the screen.
@@ -35,51 +36,55 @@ draw p@(Op (Life n)) t = runTextual p t
 draw p@(Op (Pen n))  t = runTextual p t                    
 draw p@(Op (Col c))  t = runTextual p t
 draw p@(Op (Turn n)) t = runTextual p t
+draw p@(Limit a n) t = do
+        let newT = updateTLimit n t
+        runTextual p newT
+        draw a newT
 draw p@(Op (Move n)) t = 
-        if life t == 0 || dead t == True
+        if life t == 0 || dead t == True || limit t == 0
         then return ()
         else do 
             setColor (col t)
-            let newT = updatePosTurtle n t
+            let newT = updatePosT n t
                 (x,y) = Turtle.position t
                 (x1,y1) = Turtle.position newT
-            if (pen t == True) && (dead t /= True)
-            then do runTextual p newT
-                    (line (floor x,floor y) (floor x1,floor y1))
-            else return ()
-draw p@(Seq (a) (b)) t = do 
-        if life t == 0 || dead t == True
-        then return ()
-        else do
-            draw (a) t
-            let newT = getTurtle a t
-            if life newT == 0 || dead newT == True
-            then return ()
-            else do draw (b) newT
-draw p@(Par (a) (b)) t = do 
-        if life t == 0 || dead t == True
-        then return ()
-        else do
-            let newT = updateBranchTurtle "Left branch "  1 t
-            draw a newT
-            let newT2 = updateBranchTurtle "Right branch "  0 newT
-            draw b newT2
+            if pen t == True
+              then do
+                 runTextual p newT
+                 (line (floor x,floor y) (floor x1,floor y1))
+                 flush
+              else return ()
+draw p@(Seq (a) (b)) t = 
+        if life t == 0 || dead t == True || limit t == 0
+          then return ()
+          else do
+              draw a t
+              let newT = getTurtle a t
+              if life newT == 0 || dead newT == True 
+                then return ()
+                else do draw (b) newT
+draw p@(Par (a) (b)) t = 
+        if life t == 0 || dead t == True || limit t == 0
+          then return ()
+          else do
+              draw a (updateBranchTurtle "Left branch "  1 t)
+              draw b (updateBranchTurtle "Right branch " 1 t)
 draw f@(ForE (a))    t = do 
         runTextual f t
         draw (a) t
         let newT = getTurtle a t
-        if life newT == 0 || dead newT == True
-        then return ()
-        else draw (f) newT
-draw p@(Times (a) n) t = do 
-        if life t == 0 || dead t == True
-        then return ()
-        else do runTextual p t
-                draw (a) t
-                let newT = getTurtle a t
-                if n > 1 || dead newT == True
-                then do draw (Times (a) (n-1)) newT
-                else do return ()
+        if life newT == 0 || dead newT == True || limit newT == 0
+          then return ()
+          else draw (f) newT
+draw p@(Times (a) n) t = 
+        if life t == 0 || dead t == True || limit t == 0
+          then return ()
+          else do runTextual p t
+                  draw (a) t
+                  let newT = getTurtle a t
+                  if n > 1 || dead newT == True || limit newT == 0
+                    then draw (Times (a) (n-1)) newT
+                    else return ()
 
 
 
