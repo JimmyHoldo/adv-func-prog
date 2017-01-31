@@ -1,0 +1,7 @@
+*.hi
+*.hs
+*.h
+*.o
+*.cache
+*.setup-config
+*.exe
