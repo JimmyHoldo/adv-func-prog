@@ -29,14 +29,13 @@ runGraphical p turtle = do
 
 -- | Draw the program on the screen.
 draw :: Turtle.Program -> Turtle -> IO()
-draw Empty  t = return () 
-draw (Op (Die)) t = return ()
-draw (Op (Idle)) t = return ()
-draw (Op (Life n)) t = return ()
-draw (Op (Pen n)) t = return ()                        
-draw (Op (Col c)) t = return ()
-draw (Op (Turn n)) t = return ()
-draw a@(Op (Move n)) t = 
+draw p@(Op (Die))    t = runTextual p t
+draw p@(Op (Idle))   t = runTextual p t
+draw p@(Op (Life n)) t = runTextual p t
+draw p@(Op (Pen n))  t = runTextual p t                    
+draw p@(Op (Col c))  t = runTextual p t
+draw p@(Op (Turn n)) t = runTextual p t
+draw p@(Op (Move n)) t = 
         if life t == 0 || dead t == True
         then return ()
         else do 
@@ -44,10 +43,11 @@ draw a@(Op (Move n)) t =
             let newT = updatePosTurtle n t
                 (x,y) = Turtle.position t
                 (x1,y1) = Turtle.position newT
-            if pen t == True && dead t /= True
-            then (line (floor x,floor y) (floor x1,floor y1))
+            if (pen t == True) && (dead t /= True)
+            then do runTextual p newT
+                    (line (floor x,floor y) (floor x1,floor y1))
             else return ()
-draw (Seq (a) (b)) t = do 
+draw p@(Seq (a) (b)) t = do 
         if life t == 0 || dead t == True
         then return ()
         else do
@@ -56,38 +56,30 @@ draw (Seq (a) (b)) t = do
             if life newT == 0 || dead newT == True
             then return ()
             else do draw (b) newT
-draw (Par (a) (b)) t = do 
+draw p@(Par (a) (b)) t = do 
         if life t == 0 || dead t == True
         then return ()
         else do
-            draw a t
-            draw b t
-draw f@(F (a)) t = do 
+            let newT = updateBranchTurtle "Left branch "  1 t
+            draw a newT
+            let newT2 = updateBranchTurtle "Right branch "  0 newT
+            draw b newT2
+draw f@(ForE (a))    t = do 
+        runTextual f t
         draw (a) t
         let newT = getTurtle a t
         if life newT == 0 || dead newT == True
         then return ()
         else draw (f) newT
-draw (TM (a) n) t = do 
+draw p@(Times (a) n) t = do 
         if life t == 0 || dead t == True
         then return ()
-        else do draw (a) t
+        else do runTextual p t
+                draw (a) t
                 let newT = getTurtle a t
                 if n > 1 || dead newT == True
-                then do draw (TM (a) (n-1)) newT
+                then do draw (Times (a) (n-1)) newT
                 else do return ()
-       
-                
--- | Helper function for drawing   
--- draw' :: Action -> Turtle -> IO()
--- draw' (Op (Move n)) t = do
-        -- setColor (col t)
-        -- let newT = updatePosTurtle n t
-            -- (x,y) = Turtle.position t
-            -- (x1,y1) = Turtle.position newT
-        -- if pen t == True || dead t /= True
-        -- then (line (floor x,floor y) (floor x1,floor y1))
-        -- else return ()
 
 
 
