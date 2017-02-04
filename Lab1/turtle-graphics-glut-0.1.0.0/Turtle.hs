@@ -25,7 +25,7 @@ module Turtle (
   -- * Derived operations
   , backward
   , left
-  -- ...
+  -- * Functions for updating a turtle
   , updatePosT
   , updateDegT
   , updateTLife
@@ -33,16 +33,15 @@ module Turtle (
   , updatePenT
   , updateColT
   , decreaseTLifeLimit
-  , getTurtle
   , updateBranchTurtle
   -- * Run functions
   , runTextual
+  , getTurtle
   -- ...
 
   ) where
 
--- | Description of your type here...
---
+
 -- | The coordinates of the turtle 
 type Position = (Double, Double)
 
@@ -52,32 +51,30 @@ type Color = (Double, Double, Double)
 -- | Degree of angle
 type Angle = Double
 
---data Action = A(Operation, Turtle, Turtle) 
 
 data Operation = Move Double | Turn Double | Idle | 
                  Col Color | Pen Bool | Die | 
                  Forever | Life Int
-            deriving Show
+            deriving (Show)
 
 data Turtle = Turtle { 
-      position    :: Position
-    , direction   :: Angle
-    , pen         :: Bool
-    , col         :: Color
-    , life        :: Int
-    , dead        :: Bool
-    , branch      :: String
-    , branchDepth :: Int
-    , limit     :: Int
+      position     :: Position
+    , direction    :: Angle
+    , pen          :: Bool
+    , col          :: Color
+    , life         :: Int
+    , dead         :: Bool
+    , branch       :: String
+    , branchNumber :: Int
+    , limit        :: Int
     }     
   deriving Show
 
 
---  You can use newtype instead of data if you wish.
--- Should be more than a turtle, perhaps action and operation
 data Action = Op Operation | Seq Action Action | Par Action Action |
-              ForE Action | Times Action Int | Limit Action Int
-        deriving Show
+              ForE Action | Times Action Int | Limit Action Int | Empty
+        deriving (Show)
+
 
 type Program = Action 
 
@@ -148,7 +145,7 @@ forever turtle = (ForE (turtle))
 -- | Update a turtles position.
 updatePosT :: Double -> Turtle -> Turtle
 updatePosT length t = Turtle (newPos) (direction t) (pen t) (col t) (life t) 
-                             (dead t) (branch t) (branchDepth t) (limit t)
+                             (dead t) (branch t) (branchNumber t) (limit t)
             where
                (x,y) = position t
                angle = direction t
@@ -158,20 +155,20 @@ updatePosT length t = Turtle (newPos) (direction t) (pen t) (col t) (life t)
 -- | Update the angle of the turtle
 updateDegT :: Double -> Turtle -> Turtle
 updateDegT angle t = Turtle (position t) (newDir) (pen t) (col t) (life t) 
-                                 (dead t) (branch t) (branchDepth t) (limit t)
+                                 (dead t) (branch t) (branchNumber t) (limit t)
             where newDir = direction t + angle
                        
 -- | Update the life of the turtle.               
 updateTLife :: Int -> Turtle -> Turtle
 updateTLife n t = Turtle (position t) (direction t) (pen t) (col t) (n) 
-                              (dead t) (branch t) (branchDepth t) (limit t)
+                              (dead t) (branch t) (branchNumber t) (limit t)
                     
 
 -- | Decrease the life an limit of a turtle.
 decreaseTLifeLimit :: Int -> Turtle -> Turtle
 decreaseTLifeLimit n t = Turtle (position t) (direction t) (pen t) 
                                 (col t) (newLife) (dead t) 
-                                (branch t) (branchDepth t) (newLimit)
+                                (branch t) (branchNumber t) (newLimit)
             where newLife  | (life t) < 0 = -1
                            | (life t) >= 0 && ((life t) - n) < 0 = 0
                            | otherwise = (life t) - n
@@ -182,29 +179,35 @@ decreaseTLifeLimit n t = Turtle (position t) (direction t) (pen t)
 -- | Update the limit of the turtle.               
 updateTLimit :: Int -> Turtle -> Turtle
 updateTLimit n t = Turtle (position t) (direction t) (pen t) (col t) (life t) 
-                          (dead t) (branch t) (branchDepth t) (n)
+                          (dead t) (branch t) (branchNumber t) (n)
                     
 
 -- | Update if the the turtle draw or not.                    
 updatePenT :: Bool -> Turtle -> Turtle
 updatePenT b t = Turtle (position t) (direction t) (b) (col t) (life t) 
-                             (dead t) (branch t) (branchDepth t) (limit t)
+                             (dead t) (branch t) (branchNumber t) (limit t)
 
 -- | Update the color of the turtle.
 updateColT :: Color -> Turtle -> Turtle
 updateColT c t = Turtle (position t) (direction t) (pen t) (c) (life t) 
-                             (dead t) (branch t) (branchDepth t) (limit t)
+                             (dead t) (branch t) (branchNumber t) (limit t)
 
 -- | Update the turtles branch info.
 updateBranchTurtle :: String -> Int -> Turtle -> Turtle
 updateBranchTurtle str n t = Turtle (position t) (direction t) (pen t) 
                                     (col t) (life t) (dead t) (str) 
-                                    ((branchDepth t) + n) (limit t)
+                                    ((branchNumber t) + n) (limit t)
+                                    
+-- | Update the turtles branch info.
+resetBranchTurtle :: Turtle -> Turtle
+resetBranchTurtle t = Turtle (position t) (direction t) (pen t) 
+                             (col t) (life t) (dead t) ("") 
+                             ((0)) (limit t)
 
 -- | Get the turtle after a program has run.
 getTurtle :: Program -> Turtle -> Turtle
 getTurtle (Op (Die))    t = Turtle (position t) (direction t) (pen t) (col t) 
-                                   (0) (True) (branch t) (branchDepth t) (0)
+                                   (0) (True) (branch t) (branchNumber t) (0)
 getTurtle (Op (Idle))   t = decreaseTLifeLimit 1 t
 getTurtle (Op (Life n)) t = updateTLife n t
 getTurtle (Limit a n)   t = newT2
@@ -226,6 +229,12 @@ getTurtle (Seq (a) (b)) t = newT2
             where
                 newT  = getTurtle a t
                 newT2 = getTurtle b newT
+getTurtle (Par (a) (b)) t = newT2
+            where
+                newT  = getTurtle a (updateBranchTurtle "Left "  1 t)
+                newT2 = resetBranchTurtle $ 
+                        getTurtle b (updateBranchTurtle "Right "  0 newT)
+
 
 -- | Print information about executed action.
 runTextual :: Program -> Turtle -> IO ()
@@ -256,7 +265,9 @@ runTextual (Times (a) n) t = putStrLn $ fixedStartStr t
 
 
 -- | Start string for runTextual.
-fixedStartStr t = (branch t) ++ (depth(branchDepth t))
+fixedStartStr t | branchNumber t == 0 = ""
+                | otherwise = "Branch depth " ++ (show(branchNumber t)) 
+                  ++ " " ++ (branch t) ++ ": "
 
 -- | If the depth is bigger then zero, the display it.                                        
 depth n | n == 0 = ""
