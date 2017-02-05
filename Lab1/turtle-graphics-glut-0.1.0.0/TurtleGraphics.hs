@@ -5,7 +5,6 @@ module TurtleGraphics (runGraphical) where
 
 import Turtle
 import Control.Concurrent
-import TurtleExtras
 
 import qualified Graphics.Rendering.OpenGL.GL as GL
 import qualified Graphics.Rendering.OpenGL.GLU as GLU
@@ -118,6 +117,15 @@ draw' (a, b, (Empty)) t t2 = do
         if life t2 == 0 || dead t2 == True || limit t2 == 0
           then return ()
           else draw b t2
+draw' (a@(ForE a1), b, rest) t t2 = do 
+        let (x,y,z) = (getFirstInstruction (Par a1 b))
+        draw a1 t 
+        draw b t2
+        let newT = getTurtle a1 t
+            newT2 = getTurtle b t2
+        draw' (getFirstInstruction(Par (a) rest)) newT newT2
+        let newT3 = getTurtle a1 newT
+        draw a newT
 draw' (a, b, p@(Par (Seq _ _) (Seq _ _))) t t2 = do
         if life t == 0 || dead t == True || limit t == 0
           then return ()
@@ -248,7 +256,14 @@ getFirstInstruction (Par a@(Seq (a1) (b1)) b@(Seq (a2) (b2)))
 getFirstInstruction (Par a@(Par (a1) (b1)) b@(Seq (a2) (b2)))
                     = (a, b, Empty)
 getFirstInstruction (Par a@(Seq (a1) (b1)) b@(Par (a2) (b2)))
-                    = (a, b, Empty)       
+                    = (a, b, Empty) 
+getFirstInstruction (Par a@(ForE (a1)) b@(Seq (a2) (b2))) 
+                    =  (a, ret2, b')
+    where 
+        ret2 = getFirstInstruction' b
+        b' = getRest b
+getFirstInstruction (Par a@(ForE (a1)) b) 
+                    =  (a, b, Empty)
 getFirstInstruction (Par a b@(Par (a2) (b2)))
                     = (a, b, Empty)
 getFirstInstruction (Par a@(Par (a1) (b1)) b)
@@ -258,6 +273,8 @@ getFirstInstruction (Par a b@(Seq (a2) (b2)))
 getFirstInstruction (Par a@(Seq (a1) (b1)) b)
                     = (a, b, Empty)
 getFirstInstruction (Par a@(Times _ _) b@(Times _ _))
+                    = (a, b, Empty)
+getFirstInstruction (Par a b)
                     = (a, b, Empty)
 
 
@@ -272,6 +289,7 @@ getRest i@(Op (Col n)) = i
 getRest i@(Op (Turn n)) = i
 getRest i@(Limit a n) = i
 getRest i@(Op (Move n)) = i
+getRest i@(ForE a) = getRest a
 getRest (Seq (a@(Seq c d)) (b)) = (Seq (getRest a) b) 
 getRest (Seq (a) (b)) = b
 getRest (Par (a@(Par c d)) (b)) = (Par (getRest a) b) 
@@ -289,6 +307,7 @@ getFirstInstruction' i@(Op (Life n)) = i
 getFirstInstruction' i@(Op (Pen n)) = i
 getFirstInstruction' i@(Op (Col n)) = i
 getFirstInstruction' i@(Op (Turn n)) = i
+getFirstInstruction' i@(ForE a) = getFirstInstruction' a
 getFirstInstruction' i@(Limit a n) = getFirstInstruction' a
 getFirstInstruction' i@(Times a n) = getFirstInstruction' a
 getFirstInstruction' i@(Op (Move n)) = i

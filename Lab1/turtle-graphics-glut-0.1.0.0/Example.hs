@@ -3,9 +3,10 @@ module Main where
 import TurtleGraphics
 import Turtle
 import TurtleExtras
+
 t = (Turtle (300,300) 0 True (0,255,255) (-1) False "" 0 (-1))
 
-main = runGraphical coolExample t
+main = runGraphical coolExample2 t
 
 coolExample = ((<|>) (
                 ((<|>) (quadProgram(spiral 0 91) 200 )  
@@ -22,7 +23,7 @@ coolExample = ((<|>) (
                          border))
             )
     )
-
+coolExample2 = ((<|>) (forever(left 45)) (spiral 0 91))
 
 spiral :: Double -> Double -> Program
 spiral size angle | size > 100 = (Op Idle)
