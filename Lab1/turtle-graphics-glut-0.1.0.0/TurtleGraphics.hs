@@ -18,12 +18,12 @@ runGraphical p turtle = do
     window <- createWindow "Turtle!"
     reshapeCallback $= Just setDisplay
     clear [ColorBuffer]
-    displayCallback $= draw p turtle--display
-    setDisplay =<< get windowSize
+    displayCallback $= display
+    setDisplay =<< get windowSize 
     mainLoop
   where
     display :: DisplayCallback
-    display = return ()
+    display = draw p turtle
 
 -- | Draw the program on the screen.
 draw :: Turtle.Program -> Turtle -> IO()
@@ -51,7 +51,14 @@ draw p@(Op (Move n)) t =
                  (line (floor x,floor y) (floor x1,floor y1))
                  flush
               else runTextual p newT
-
+draw p@(Seq a@(Par (a1) (b1)) (b)) t = 
+        if life t == 0 || dead t == True || limit t == 0
+          then return ()
+          else do
+              draw a t
+              if life t == 0 || dead t == True 
+                then return ()
+                else do draw (b) t
 draw p@(Seq (a) (b)) t = 
         if life t == 0 || dead t == True || limit t == 0
           then return ()
@@ -109,7 +116,16 @@ draw' (a@(Times p1 n1), b@(Times p2 n2), (Empty)) t t2 =
                       draw' ((Times p1 (n1-1)), (Times p2 (n2-1)), Empty) 
                               (getTurtle prog3 newT) (getTurtle prog4 newT2)
           else return ()
-            
+draw' (a@(Limit a1 n1), b@(Limit b1 n2), (Empty)) t t2 = do
+        let newT = updateTLimit n1 t
+        let newT2 = updateTLimit n2 t2
+        draw' (a1, b1, Empty) newT newT2     
+draw' (a@(Limit a1 n), b, (Empty)) t t2 = do
+        let newT = updateTLimit n t
+        draw' (a1, b, Empty) newT t2
+draw' (a, b@(Limit b1 n), (Empty)) t t2 = do
+        let newT = updateTLimit n t2
+        draw' (a, b1, Empty) t newT      
 draw' (a, b, (Empty)) t t2 = do
         if life t == 0 || dead t == True || limit t == 0
           then return ()
@@ -118,6 +134,15 @@ draw' (a, b, (Empty)) t t2 = do
           then return ()
           else draw b t2
 draw' (a@(ForE a1), b, rest) t t2 = do 
+        let (x,y,z) = (getFirstInstruction (Par a1 b))
+        draw a1 t 
+        draw b t2
+        let newT = getTurtle a1 t
+            newT2 = getTurtle b t2
+        draw' (getFirstInstruction(Par (a) rest)) newT newT2
+        let newT3 = getTurtle a1 newT
+        draw a newT
+draw' (b, a@(ForE a1), rest) t t2 = do 
         let (x,y,z) = (getFirstInstruction (Par a1 b))
         draw a1 t 
         draw b t2
