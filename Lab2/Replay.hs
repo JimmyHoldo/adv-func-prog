@@ -7,6 +7,12 @@ import Control.Monad.Trans
 import Data.Time
 
     
+-- Types
+data Replay q r a where
+    Io     :: (Show a, Read a) =>  IO a -> Replay q r a
+    Ask    :: (Show q, Read q) =>  q -> Replay q r r
+    Return :: a -> Replay q r a
+    Bind   :: Replay q r a -> (a -> Replay q r b) -> Replay q r b
     
 
 type Trace r = [Item r]
@@ -15,52 +21,62 @@ data Item r = Answer r| Result String
   deriving (Show,Read)
 
 
--- Types
-type Replay q r a = ReplayT IO q r a
-newtype ReplayT m q r a =  ReplayT {runReplayT :: Trace r -> m ((Either q a), Trace r) }
-
-
 
 
 
 
 -- Operations
-instance (Monad m, Show q, Read q) =>  Monad (ReplayT m q r) where
-    return x = ReplayT $ \trace -> return (Right x, trace)
-    x >>= f = ReplayT $ \trace -> do
-                            (x, trace2) <- runReplayT x trace
-                            ret x trace2
-        where
-            ret (Left qeustion) tr = return (Left qeustion, tr)
-            ret (Right a) tr = runReplayT (f a) tr
+instance Monad (Replay q r) where
+    return = Return     
+    (>>=) = Bind
 
+instance Applicative (Replay q r) where
+    pure = return
+    (<*>) = ap 
+
+instance Functor (Replay q r) where
+    fmap = liftM
 
 -- instance Show r => Show (Trace r)
 -- instance Read r => Read (Trace r)
 
 
+run :: Replay q r a -> Trace r -> IO (Either (q, Trace r) (a))
+run x tr =do e <- run' x tr
+             case e of
+                (Left (q, tr', tr2')) -> return (Left (q, tr'))
+                (Right (a, tr', tr2')) -> return (Right (a))
+
+run' :: Replay q r a -> Trace r -> IO (Either (q, Trace r, Trace r) (a, Trace r, Trace r))
+run'(Return x)  tr = return (Right (x, tr, []))
+run' (Io x)  tr = 
+    case tr of
+        (Result r):trs -> return $ (Right ((read r), trs, [Result r]))
+        trs -> do 
+            r <- x
+            return $ (Right ((r), trs, [Result (show r)]))
+run' (Ask x) tr = 
+    case tr of
+        (Answer r):trs -> return $ (Right ((r), trs, [Answer r]))
+        trs -> return $ (Left (x, trs, trs))
+run' (Bind ma f) tr = do 
+    e1 <- run' ma tr 
+    case e1 of
+        (Left (x, tr, tr2)) -> do return $ (Left (x, tr, tr))
+        (Right (x, tr, tr2)) -> do 
+            e <- run' (f x) tr
+            case e of
+              (Left (y, tr', tr2')) -> return $ (Left ((y), tr2', tr2 ++ tr2'))
+              (Right (y, tr', tr2')) -> return $ (Right ((y), tr2', tr2 ++ tr2'))
 
 
---io  :: (Show a, Read a) => IO a -> ReplayT m q r a
-io input = ReplayT $ \trace -> 
-            case trace of
-                [] -> do i <- input
-                         return (Right i, (Result (show i)):trace)
-                ((Result r):trs) -> return (Right (read r), trace) -- most likely not correct
+io  :: (Show a, Read a) => IO a -> Replay q r a
+io = Io
 
                 
-ask :: (Monad m) => q -> ReplayT m q r r
-ask question = ReplayT $ \trace -> 
-            case trace of
-                [] -> return (Left question, trace)
-                ((Answer r):trs) -> return (Right r, trace) -- most likely not correct
+ask :: (Show q, Read q) =>  q -> Replay q r r
+ask q = Ask q
                 
-run :: (Monad m) => ReplayT m q r a -> Trace r -> m (Either (q, Trace r) a)
-run replay trace = do 
-            (x, trace2) <- runReplayT replay trace
-            case x of
-                Left q -> return $ Left (q, trace2)
-                Right a -> return $ Right a
 
 
 emptyTrace :: Trace r
@@ -78,7 +94,7 @@ example = do
   io (putStrLn ("You are " ++ (show age)))
   name <- ask "What is your name?"
   io (putStrLn (name ++ " is " ++ age ++ " years old"))
-  --t1 <- io getCurrentTime
+  -- t1 <- io getCurrentTime
   -- io (putStrLn ("Total time: " ))
   return (read age)
 
@@ -100,10 +116,3 @@ running prog = play emptyTrace
  
 
                           
-instance (Monad m, Show q, Read q) => Applicative (ReplayT m q r) where
-    pure = return
-    (<*>) = ap 
-
-instance (Monad m, Show q, Read q) => Functor (ReplayT m q r) where
-    fmap = liftM
-
