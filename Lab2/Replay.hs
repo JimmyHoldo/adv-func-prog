@@ -62,6 +62,7 @@ run replay trace = do
                 Left q -> return $ Left (q, trace2)
                 Right a -> return $ Right a
 
+
 emptyTrace :: Trace r
 emptyTrace = []
 
@@ -105,3 +106,4 @@ instance (Monad m, Show q, Read q) => Applicative (ReplayT m q r) where
 
 instance (Monad m, Show q, Read q) => Functor (ReplayT m q r) where
     fmap = liftM
+
