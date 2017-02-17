@@ -1,6 +1,6 @@
 {-# LANGUAGE GADTs #-}
 module Replay (
-    Replay(..)
+    Replay
     , Trace (..)
     , Item (..)
     , addAnswer
