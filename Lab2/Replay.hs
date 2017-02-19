@@ -31,9 +31,6 @@ data Item r = Answer r| Result String
 
 
 
-
-
-
 -- Operations
 instance Monad (Replay q r) where
     return = Return
@@ -46,16 +43,15 @@ instance Applicative (Replay q r) where
 instance Functor (Replay q r) where
     fmap = liftM
 
--- instance Show r => Show (Trace r)
--- instance Read r => Read (Trace r)
 
-
+-- | Run function for the Replay monad
 run :: Replay q r a -> Trace r -> IO (Either (q, Trace r) (a))
 run x tr =do e <- run' x tr
              case e of
                 (Left (q, tr', tr2')) -> return (Left (q, tr'))
                 (Right (a, tr', tr2')) -> return (Right (a))
 
+-- | Helper fuction to the run function.
 run' :: Replay q r a -> Trace r -> IO (Either (q, Trace r, Trace r) (a, Trace r, Trace r))
 run'(Return x)  tr = return (Right (x, tr, []))
 run' (Io x)  tr =
@@ -78,17 +74,19 @@ run' (Bind ma f) tr = do
               (Left (y, tr', tr2')) -> return $ (Left (y, tr2++tr', tr2 ++ tr2'))
               (Right (y, tr', tr2')) -> return $ (Right (y, tr', tr2 ++ tr2'))
 
+-- | Create an IO instriction
 io  :: (Show a, Read a) => IO a -> Replay q r a
 io = Io
 
-
+-- | Create an ask instruction
 ask :: q -> Replay q r r
 ask q = Ask q
 
 
-
+-- | Initiate an empty trace.
 emptyTrace :: Trace r
 emptyTrace = []
 
+-- | Add an answer to the trace.
 addAnswer  :: Trace r -> r -> Trace r
 addAnswer t r = t ++ [Answer r]
