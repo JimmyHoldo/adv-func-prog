@@ -125,16 +125,26 @@ testCases =
           }
           , TestCase
             { testName    = "test6"
-            , testInput   = []
-            , testResult  = (8, 1)
-            , testTrace   = [(Answer 3), (Result "1"), (Answer 4)]
+            , testInput   = [2,2]
+            , testResult  = (12, 0)
+            , testTrace   = [(Answer 3)]
             , testProgram = \tick -> do
-                io tick
                 a <- ask () -- should be 3
-                b <- io (return 1)
-                c <- ask () -- should be 4
-                return (a + b + c)
+                b <- do b <- ask ()
+                        c <- ask ()
+                        return (b+c)
+                return (a * b)
             }
+            , TestCase
+              { testName    = "test7"
+              , testInput   = [4]
+              , testResult  = (11, 0)
+              , testTrace   = [(Answer 3)]
+              , testProgram = \tick -> do
+                  a <- ask () -- should be 3
+                  b <- ask () -- should be 4
+                  return (a + b*2)
+              }
   ]
 
 -- | Running all the test cases.

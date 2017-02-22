@@ -83,7 +83,7 @@ questionToText ((QInt q):qs)  i     = (("<p>" ++ q ++ "</p>"
                                       ++ "<p><input type=number name=answer"
                                       ++(show i)++"></p>")
                                       ++ (questionToText qs (i+1)))
-questionToText ((InfoText q):qs)  i = ("<p>" ++ q ++ "</p>"
+questionToText ((InfoText q):qs)  i = ("<p style=white-space:pre>" ++ q ++ "</p>"
                                       ++ (questionToText qs (i)))
 questionToText ((QDrop q):qs)     i =
     "<input type=hidden id=id"++(show i)++" name=answer"++(show i)++" value=ls>"

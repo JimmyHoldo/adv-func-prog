@@ -27,21 +27,20 @@ data TestCase = TestCase
   { testName    :: String
   , testInput   :: Input
   , testResult  :: Result
+  , testTrace   :: Trace Int
   , testProgram :: Program
   }
 
 -- | Running a program.
-runProgram :: Program -> Input -> IO Result
-runProgram p inp = do
+runProgram :: Program -> Input -> Trace Int -> IO Result
+runProgram p inp tr = do
     counter <- newIORef 0
     let tick = modifyIORef counter (+1)
-    x <- play (p tick) emptyTrace inp
+    x <- play (p tick) tr inp
     n <- readIORef counter
     return (x, n)
   where
     play prog t inp = do
-    
-      print t
       r <- run prog t
       case r of
         Right x      -> return x
@@ -51,9 +50,9 @@ runProgram p inp = do
 
 -- | Checking a test case. Compares expected and actual results.
 checkTestCase :: TestCase -> IO Bool
-checkTestCase (TestCase name i r p) = do
+checkTestCase (TestCase name i r tr p) = do
   putStr $ name ++ ": "
-  r' <- runProgram p i
+  r' <- runProgram p i tr
   if r == r'
     then putStrLn "ok" >> return True
     else putStrLn ("FAIL: expected " ++ show r ++
@@ -68,6 +67,7 @@ testCases =
     { testName    = "test1"
     , testInput   = [3,4]
     , testResult  = (8, 1)
+    , testTrace   = emptyTrace
     , testProgram = \tick -> do
         io tick
         a <- ask () -- should be 3
@@ -75,6 +75,76 @@ testCases =
         c <- ask () -- should be 4
         return (a + b + c)
     }
+  , TestCase
+    { testName    = "test2"
+    , testInput   = []
+    , testResult  = (8, 1)
+    , testTrace   = [(Answer 3), (Result "1"), (Answer 4)]
+    , testProgram = \tick -> do
+        io tick
+        a <- ask () -- should be 3
+        b <- io (return 1)
+        c <- ask () -- should be 4
+        return (a + b + c)
+    }
+    , TestCase
+      { testName    = "test3"
+      , testInput   = [4]
+      , testResult  = (8, 1)
+      , testTrace   = [(Answer 3), (Result "1")]
+      , testProgram = \tick -> do
+          io tick
+          a <- ask () -- should be 3
+          b <- io (return 1)
+          c <- ask () -- should be 4
+          return (a + b + c)
+      }
+      , TestCase
+        { testName    = "test4"
+        , testInput   = [4]
+        , testResult  = (8, 1)
+        , testTrace   = [(Answer 3)]
+        , testProgram = \tick -> do
+            io tick
+            a <- ask () -- should be 3
+            b <- io (return 1)
+            c <- ask () -- should be 4
+            return (a + b + c)
+        }
+        , TestCase
+          { testName    = "test5"
+          , testInput   = [4, 5]
+          , testResult  = (9, 2)
+          , testTrace   = emptyTrace
+          , testProgram = \tick -> do
+              io tick
+              a <- ask ()
+              io tick
+              c <- ask ()
+              return (a + c)
+          }
+          , TestCase
+            { testName    = "test6"
+            , testInput   = [2,2]
+            , testResult  = (12, 0)
+            , testTrace   = [(Answer 3)]
+            , testProgram = \tick -> do
+                a <- ask () -- should be 3
+                b <- do b <- ask ()
+                        c <- ask ()
+                        return (b+c)
+                return (a * b)
+            }
+            , TestCase
+              { testName    = "test7"
+              , testInput   = [4]
+              , testResult  = (11, 0)
+              , testTrace   = [(Answer 3)]
+              , testProgram = \tick -> do
+                  a <- ask () -- should be 3
+                  b <- ask () -- should be 4
+                  return (a + b*2)
+              }
   ]
 
 -- | Running all the test cases.
