@@ -67,33 +67,34 @@ getTrace  = do tr <- getInput ( lP $ "trace")
 -- | Build a web page.
 page :: Form -> Trace Answer -> Text
 page qs trace = lP $ "<html><body><form method=post>"
-                     ++ ((questionToText qs 0))
+                     ++ ((questionToString qs 0))
                      ++ "<input type=submit value=Submit>"
                      ++ "<input type=hidden name=trace value="
                      ++ encodeTrace(show (trace)) ++ "></body></html>"
 
 -- | Build the content that is shown on the web page.
-questionToText :: Form -> Int -> String
-questionToText []             i     = ""
-questionToText ((QText q):qs) i     = (("<p>" ++ q ++ "</p>"
-                                      ++ "<p><input name=answer"
-                                      ++( show i)++"></p>")
-                                      ++  (questionToText qs (i+1)))
-questionToText ((QInt q):qs)  i     = (("<p>" ++ q ++ "</p>"
-                                      ++ "<p><input type=number name=answer"
-                                      ++(show i)++"></p>")
-                                      ++ (questionToText qs (i+1)))
-questionToText ((InfoText q):qs)  i = ("<p style=white-space:pre>" ++ q ++ "</p>"
-                                      ++ (questionToText qs (i)))
-questionToText ((QDrop q):qs)     i =
+questionToString :: Form -> Int -> String
+questionToString []                 i = ""
+questionToString ((QText q):qs)     i = (("<p>" ++ q ++ "</p>"
+                                          ++ "<p><input name=answer"
+                                          ++( show i)++"></p>")
+                                          ++  (questionToString qs (i+1)))
+questionToString ((QInt q):qs)      i = (("<p>" ++ q ++ "</p>"
+                                          ++ "<p><input type=number name=answer"
+                                          ++(show i)++"></p>")
+                                          ++ (questionToString qs (i+1)))
+questionToString ((InfoText q):qs)  i = ("<p style=white-space:pre>" ++ q
+                                            ++ "</p>"
+                                            ++ (questionToString qs (i)))
+questionToString ((QDrop q):qs)     i =
     "<input type=hidden id=id"++(show i)++" name=answer"++(show i)++" value=ls>"
      ++ ("<select id=mySelect"++(show i)
-     ++" onchange=update"++(show i)++"("++(show i)++")>")
+     ++" onchange=update"++(show i)++"()>")
      ++ (optionsS q) ++ "</select>"
      ++ "<script> function update"++(show i)++"() { "
      ++ "var answer=document.getElementById('mySelect"++(show i)++"').value;"
      ++ "document.getElementById('id"++(show i)++"').value = answer;}"
-     ++ "</script>" ++ (questionToText qs (i+1))
+     ++ "</script>" ++ (questionToString qs (i+1))
 
 -- | Helper function for building a dropdown list.
 optionsS :: [String] -> String

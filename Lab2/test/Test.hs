@@ -137,13 +137,14 @@ testCases =
             }
             , TestCase
               { testName    = "test7"
-              , testInput   = [4]
+              , testInput   = [4,2]
               , testResult  = (11, 0)
               , testTrace   = [(Answer 3)]
               , testProgram = \tick -> do
                   a <- ask () -- should be 3
                   b <- ask () -- should be 4
-                  return (a + b*2)
+                  c <- ask () -- should be 2
+                  return (a + b +c*2)
               }
   ]
 
