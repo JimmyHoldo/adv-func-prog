@@ -4,3 +4,5 @@
 *.cache
 *.setup-config
 *.exe
+*.docx
+*.pdf

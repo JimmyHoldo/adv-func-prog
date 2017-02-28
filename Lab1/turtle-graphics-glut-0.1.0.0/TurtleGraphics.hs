@@ -76,12 +76,13 @@ draw p@(Par (a) (b)) t =
               let newT2 = updateBranchTurtle "Right"  0 newT
               draw' (getFirstInstruction p) newT newT2
 draw f@(ForE (a))    t = do 
-        runTextual f t
+        --runTextual a t
         draw (a) t
         let newT = getTurtle a t
+            fL = foreverLoop a
         if life newT == 0 || dead newT == True || limit newT == 0
           then return ()
-          else draw (f) newT
+          else draw (fL) newT
 draw p@(Times (a) n) t = 
         if life t == 0 || dead t == True || limit t == 0
           then return ()
@@ -119,38 +120,44 @@ draw' (a@(Times p1 n1), b@(Times p2 n2), (Empty)) t t2 =
 draw' (a@(Limit a1 n1), b@(Limit b1 n2), (Empty)) t t2 = do
         let newT = updateTLimit n1 t
         let newT2 = updateTLimit n2 t2
-        draw' (a1, b1, Empty) newT newT2     
+        draw' ((getFirstInstruction (Par a1 b1))) newT newT2     
 draw' (a@(Limit a1 n), b, (Empty)) t t2 = do
         let newT = updateTLimit n t
-        draw' (a1, b, Empty) newT t2
+        draw' ((getFirstInstruction (Par a b))) newT t2     
 draw' (a, b@(Limit b1 n), (Empty)) t t2 = do
         let newT = updateTLimit n t2
-        draw' (a, b1, Empty) t newT      
-draw' (a, b, (Empty)) t t2 = do
+        draw' ((getFirstInstruction (Par a b1))) t newT    
+draw' (a@(ForE a1), b@(ForE b1), Empty) t t2 = do 
+        let a1' = foreverLoop a1
+        let b1' = foreverLoop b1
+        draw' (getFirstInstruction (Par a1' b1')) t t2
+draw' (a@(ForE a1), b, Empty) t t2 = do ------------------------------------------ForE
+        let a1' = foreverLoop a1
+        draw' (getFirstInstruction (Par a1' b)) t t2
+draw' (a, b@(ForE b1), Empty) t t2 = do 
+        let b1' = foreverLoop b1
+        draw' (getFirstInstruction (Par a b1')) t t2
+draw' (a@(Seq _ _), b, (Empty)) t t2 = do ------------------------------------------------------
+        if life t2 == 0 || dead t2 == True || limit t2 == 0
+          then return ()
+          else draw b t2
+        if life t == 0 || dead t == True || limit t == 0
+          then return ()
+          else draw a t
+draw' (a, b@(Seq _ _), (Empty)) t t2 = do
         if life t == 0 || dead t == True || limit t == 0
           then return ()
           else draw a t
         if life t2 == 0 || dead t2 == True || limit t2 == 0
           then return ()
           else draw b t2
-draw' (a@(ForE a1), b, rest) t t2 = do 
-        let (x,y,z) = (getFirstInstruction (Par a1 b))
-        draw a1 t 
-        draw b t2
-        let newT = getTurtle a1 t
-            newT2 = getTurtle b t2
-        draw' (getFirstInstruction(Par (a) rest)) newT newT2
-        let newT3 = getTurtle a1 newT
-        draw a newT
-draw' (b, a@(ForE a1), rest) t t2 = do 
-        let (x,y,z) = (getFirstInstruction (Par a1 b))
-        draw a1 t 
-        draw b t2
-        let newT = getTurtle a1 t
-            newT2 = getTurtle b t2
-        draw' (getFirstInstruction(Par (a) rest)) newT newT2
-        let newT3 = getTurtle a1 newT
-        draw a newT
+draw' (a, b, (Empty)) t t2 = do--------------------------------------------------------
+        if life t == 0 || dead t == True || limit t == 0
+          then return ()
+          else draw a t
+        if life t2 == 0 || dead t2 == True || limit t2 == 0
+          then return ()
+          else draw b t2
 draw' (a, b, p@(Par (Seq _ _) (Seq _ _))) t t2 = do
         if life t == 0 || dead t == True || limit t == 0
           then return ()
@@ -209,8 +216,8 @@ draw' (a, b, (Par p@(Seq _ _) s2)) t t2 =
             draw b t2
             let newT = getTurtle a t
             let newT2 = getTurtle b t2
-            draw p newT
             draw s2 newT2
+            draw p newT
 draw' (a, b, (Par (s1) p@(Seq _ _))) t t2 = do
         if life t == 0 || dead t == True || limit t == 0
           then return ()
@@ -265,7 +272,10 @@ draw' (a, b, p@(Par (s1) (s2))) t t2 = do
             draw s2 newT2
      
               
-              
+-- | Build a infinite list of a forever instruction
+foreverLoop :: Turtle.Program -> Turtle.Program
+foreverLoop prog = prog >*> foreverLoop prog
+             
 -- | Get the first instruction from both parallel and the remaining 
 --   instructions.               
 getFirstInstruction :: Program -> (Program, Program, Program)
@@ -282,11 +292,10 @@ getFirstInstruction (Par a@(Par (a1) (b1)) b@(Seq (a2) (b2)))
                     = (a, b, Empty)
 getFirstInstruction (Par a@(Seq (a1) (b1)) b@(Par (a2) (b2)))
                     = (a, b, Empty) 
-getFirstInstruction (Par a@(ForE (a1)) b@(Seq (a2) (b2))) 
-                    =  (a, ret2, b')
-    where 
-        ret2 = getFirstInstruction' b
-        b' = getRest b
+getFirstInstruction (Par a@(ForE (a1)) b@(ForE (b1))) 
+                    =  (a, b,Empty)
+getFirstInstruction (Par a b@(ForE (b1))) 
+                    =  (a, b,Empty)
 getFirstInstruction (Par a@(ForE (a1)) b) 
                     =  (a, b, Empty)
 getFirstInstruction (Par a b@(Par (a2) (b2)))
@@ -295,7 +304,7 @@ getFirstInstruction (Par a@(Par (a1) (b1)) b)
                     = (a, b, Empty)       
 getFirstInstruction (Par a b@(Seq (a2) (b2)))
                     = (a, b, Empty)
-getFirstInstruction (Par a@(Seq (a1) (b1)) b)
+getFirstInstruction (Par a@(Seq (a1) (b1)) b)----------------------------
                     = (a, b, Empty)
 getFirstInstruction (Par a@(Times _ _) b@(Times _ _))
                     = (a, b, Empty)

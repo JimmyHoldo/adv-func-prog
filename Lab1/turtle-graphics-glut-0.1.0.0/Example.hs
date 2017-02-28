@@ -6,8 +6,7 @@ import TurtleExtras
 
 t = (Turtle (300,300) 0 True (0,255,255) (-1) False "" 0 (-1))
 
-main = runGraphical coolExample t
-
+main = runGraphical coolExample5 t
 coolExample = 
     ((<|>) 
         (
@@ -32,7 +31,8 @@ coolExample3 = ((<|>) (((<|>) ((right 45) >*> (forward 100))
                                        ((left 90) >*> (forward 100)) )) 
                ) >*> (forward 200)
 
-
+coolExample4 = forever $ (forward 2) >*> (right 40) >*> (forward 10) >*> (right 30)
+coolExample5 = ((<|>) coolExample4 ((forward 20) >*> (right 50) >*> (forward 30) >*> (right 5)))
     
 spiral :: Double -> Double -> Program
 spiral size angle | size > 100 = (Op Idle)
