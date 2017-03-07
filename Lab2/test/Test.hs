@@ -40,8 +40,6 @@ runProgram p inp = do
     return (x, n)
   where
     play prog t inp = do
-    
-      print t
       r <- run prog t
       case r of
         Right x      -> return x
